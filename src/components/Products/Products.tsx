@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, ChangeEvent } from "react";
 import getBase64 from "../../helpers/getBase64";
 
 import "./Products.css";
@@ -24,9 +24,10 @@ import {
   CInputGroup,
   CLink,
 } from "@coreui/react";
-import CIcon from "@coreui/icons-react";
 
 import ReloadIcon from "../icons/ReloadIcon";
+
+const { REACT_APP_SERVER_URL } = process.env;
 
 // Enum of colors (Keep consistent with server side)
 export enum Color {
@@ -64,76 +65,104 @@ export interface IProduct {
   price: number;
   quantity: number;
   productType: ProductType;
-  colors: Color[];
+  colors?: Color[];
   images: string[];
-  ratingData: {
+  ratingData?: {
     stars: number;
     ratings: Rating[];
   };
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 export interface ProductTableItem {
   title: string;
   price: number;
   quantity: number;
-  type: ProductType; // productType
+  productType: ProductType; // productType
   // rating: number;
   // createdAt: Date;
 }
 
 const productFields = [
   { key: "title", _classes: "font-weight-bold" },
-  { key: "type" },
+  { key: "productType" },
   { key: "quantity" },
   { key: "price" },
 ];
 
 const Products = () => {
-  const [products, setProducts] = useState<ProductTableItem[]>([
-    {
-      title: "Red Printed T-Shirt",
-      price: 24.99,
-      quantity: 32,
-      type: ProductType.Shirt,
-    },
-  ]);
+  const [products, setProducts] = useState<ProductTableItem[]>([]);
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [productType, setproductType] = useState<string>("");
+  const [productType, setProductType] = useState<ProductType>(
+    ProductType.Jacket
+  );
   const [quantity, setQuantity] = useState<number>(1);
   const [price, setPrice] = useState<number>(0);
   const [images, setImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<FileList | null>();
-  const saveImage = (result: string) => {
-    setImages([...images, result]);
-  };
   useEffect(() => {
     setImages([]);
-    console.log(imageFiles);
     if (!imageFiles) return;
     let imgStrings: string[] = [];
-    const test = (result: string) => {
-      console.log(result);
+
+    const saveImageStrings = (result: string) => {
       imgStrings = [...imgStrings, result];
+      setImages(imgStrings);
     };
-    const test2 = async () => {
+
+    const imgToB64Arr = async () => {
       await Promise.all(
         Array.from(imageFiles).map(async (imageFile: File) =>
           // getBase64(imageFile, saveImage)
           {
-            await getBase64(imageFile, test);
-            console.log("hello");
+            await getBase64(imageFile, saveImageStrings);
           }
         )
-      ).then(() => console.log(imgStrings));
+      );
     };
-    test2();
+    imgToB64Arr();
   }, [imageFiles]);
 
   useEffect(() => {
-    console.log(images);
-  }, [images]);
+    refreshProducts();
+  }, []);
+
+  const addProduct = async () => {
+    try {
+      const bodyObj: IProduct = {
+        title,
+        description,
+        productType,
+        price,
+        quantity,
+        images,
+      };
+      const body = JSON.stringify(bodyObj);
+      const res = await fetch(`${REACT_APP_SERVER_URL}/products/`, {
+        method: "POST",
+        body,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await res.json();
+      console.log(data);
+      refreshProducts();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const refreshProducts = async () => {
+    try {
+      const res = await fetch(`${REACT_APP_SERVER_URL}/products/`);
+      const data = await res.json();
+      setProducts(data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   return (
     <div className="products">
@@ -149,6 +178,10 @@ const Products = () => {
                     <CInput
                       id="products__titleInput"
                       placeholder="Enter Title..."
+                      value={title}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setTitle(e.target.value)
+                      }
                     />
                   </CFormGroup>
                   <CFormGroup>
@@ -158,13 +191,25 @@ const Products = () => {
                     <CTextarea
                       id="products__descriptionInput"
                       placeholder="Enter Description..."
+                      value={description}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setDescription(e.target.value)
+                      }
                     />
                   </CFormGroup>
                   <CFormGroup>
                     <CLabel htmlFor="products__typeInput">Type</CLabel>
-                    <CSelect id="products__typeInput">
+                    <CSelect
+                      id="products__typeInput"
+                      value={productType}
+                      onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                        setProductType(e.target.value as ProductType)
+                      }
+                    >
                       {Object.values(ProductType).map((pType) => (
-                        <option value={pType}>{pType}</option>
+                        <option key={pType} value={pType}>
+                          {pType}
+                        </option>
                       ))}
                     </CSelect>
                   </CFormGroup>
@@ -180,6 +225,10 @@ const Products = () => {
                           placeholder="Enter Quantity..."
                           min={1}
                           step={1}
+                          value={quantity}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setQuantity(e.target.valueAsNumber)
+                          }
                         />
                       </CFormGroup>
                     </CCol>
@@ -191,6 +240,11 @@ const Products = () => {
                           placeholder="Enter Price..."
                           type="number"
                           min={0}
+                          step={0.01}
+                          value={price}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setPrice(e.target.valueAsNumber)
+                          }
                         />
                       </CFormGroup>
                     </CCol>
@@ -217,6 +271,11 @@ const Products = () => {
                   </CFormGroup>
                 </CForm>
               </CCardBody>
+              <CCardFooter>
+                <CButton onClick={addProduct} color="primary">
+                  Submit
+                </CButton>
+              </CCardFooter>
             </CCard>
           </CCol>
         </CRow>
@@ -226,7 +285,11 @@ const Products = () => {
               <CCardHeader>
                 Products
                 <div className="card-header-actions product__tableActions">
-                  <CButton color="link" className="card-header-action">
+                  <CButton
+                    color="link"
+                    className="card-header-action"
+                    onClick={refreshProducts}
+                  >
                     <ReloadIcon />
                   </CButton>
                 </div>
