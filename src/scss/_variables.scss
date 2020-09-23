@@ -1,0 +1,20 @@
+// Variable overrides
+// $colors: ();
+// $theme-colors: map-merge(
+//   (
+//     "primary":    $primary,
+//     "secondary":  $secondary-25,
+//     "success":    $success,
+//     "info":       $info,
+//     "warning":    $warning,
+//     "danger":     $danger,
+//     "light":      $light,
+//     "dark":       $dark
+//   ),
+//   $theme-colors
+// )
+
+$theme-colors: (
+  "primary": #2c5fcd,
+  // "info": rgb(7, 157, 203),
+);
